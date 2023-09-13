@@ -14,7 +14,7 @@ wws-config = { workspace = true }
 wws-store = { workspace = true }
 wws-project = { workspace = true }
 wws-worker = { workspace = true }
-lazy_static = "1.4.0"
+lazy_static = { workspace = true }
 regex = "1"
 
 # This commit fixes an issue with Walk::not, and is not yet released

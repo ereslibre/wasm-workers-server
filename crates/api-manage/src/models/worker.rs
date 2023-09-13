@@ -3,7 +3,8 @@
 
 use serde::Serialize;
 use utoipa::ToSchema;
-use wws_router::{Route, WORKERS};
+use wws_router::Route;
+use wws_worker::WORKERS;
 
 #[derive(Serialize, ToSchema)]
 /// Defines a worker in a given application.

@@ -20,7 +20,8 @@ use std::{path::PathBuf, sync::RwLock};
 use wws_api_manage::config_manage_api_handlers;
 use wws_data_kv::KV;
 use wws_panel::config_panel_handlers;
-use wws_router::{Routes, WORKERS};
+use wws_router::Routes;
+use wws_worker::WORKERS;
 
 #[derive(Clone, PartialEq)]
 pub enum Panel {

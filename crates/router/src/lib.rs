@@ -13,7 +13,7 @@ use std::path::{Path, PathBuf};
 use std::time::Instant;
 use wws_config::Config;
 
-pub use route::{Route, WORKERS};
+pub use route::Route;
 
 /// Contains all registered routes
 #[derive(Clone, Default)]

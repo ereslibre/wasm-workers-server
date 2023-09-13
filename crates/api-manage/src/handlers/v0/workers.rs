@@ -7,7 +7,8 @@ use actix_web::{
     web::{Data, Json, Path},
     HttpResponse, Responder, Result,
 };
-use wws_router::{Routes, WORKERS};
+use wws_router::Routes;
+use wws_worker::WORKERS;
 
 /// Return the list of loaded workers.
 #[utoipa::path(

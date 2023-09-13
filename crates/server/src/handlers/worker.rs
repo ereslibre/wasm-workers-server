@@ -9,8 +9,7 @@ use actix_web::{
     HttpRequest, HttpResponse,
 };
 use std::sync::RwLock;
-use wws_router::WORKERS;
-use wws_worker::io::WasmOutput;
+use wws_worker::{io::WasmOutput, WORKERS};
 
 const CORS_HEADER: &str = "Access-Control-Allow-Origin";
 

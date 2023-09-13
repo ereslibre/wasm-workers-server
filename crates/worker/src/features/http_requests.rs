@@ -8,6 +8,8 @@ use serde::Deserialize;
 pub struct HttpRequestsConfig {
     /// List of allowed domains to perform the calls
     pub allowed_hosts: Vec<String>,
+    /// List of allowed workers to perform the calls
+    pub allowed_workers: Vec<String>,
     /// List of allowed HTTP methods for the worker
     pub allowed_methods: Vec<String>,
     /// Allow HTTP requests
@@ -25,6 +27,7 @@ impl Default for HttpRequestsConfig {
                 String::from("PATCH"),
                 String::from("DELETE"),
             ]),
+            allowed_workers: Vec::default(),
             allow_http: false,
         }
     }

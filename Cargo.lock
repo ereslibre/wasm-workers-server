@@ -4169,6 +4169,7 @@ version = "1.5.0"
 dependencies = [
  "actix-web",
  "base64",
+ "lazy_static",
  "reqwest",
  "serde",
  "serde_json",

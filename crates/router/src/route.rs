@@ -13,18 +13,15 @@ use segment::Segment;
 use std::{
     cmp::Ordering,
     cmp::Ordering::{Greater, Less},
-    collections::HashMap,
     ffi::OsStr,
     path::{Component, Path, PathBuf},
-    sync::RwLock,
 };
 use wws_config::Config as ProjectConfig;
-use wws_worker::Worker;
+use wws_worker::{Worker, WORKERS};
 
 lazy_static! {
     static ref PARAMETER_REGEX: Regex =
         Regex::new(r"\[(?P<ellipsis>\.{3})?(?P<segment>\w+)\]").unwrap();
-    pub static ref WORKERS: RwLock<WorkerSet> = RwLock::new(WorkerSet::default());
 }
 
 /// An existing route in the project. It contains a reference to the handler, the URL path,
@@ -49,28 +46,6 @@ pub struct Route {
     pub segments: Vec<Segment>,
     /// The associated worker
     pub worker: String,
-}
-
-/// Structure that holds the map of workers from their identifier to
-/// their worker::Worker structure containing the runtime information,
-/// such as the WebAssembly module itself as well as the WebAssembly
-/// runtime.
-///
-/// This structure hides the global (but internal) hash map from
-/// other crates.
-#[derive(Default)]
-pub struct WorkerSet {
-    workers: HashMap<String, Worker>,
-}
-
-impl WorkerSet {
-    pub fn get(&self, worker_id: &str) -> Option<&Worker> {
-        self.workers.get(worker_id)
-    }
-
-    pub fn register(&mut self, worker_id: String, worker: Worker) {
-        self.workers.insert(worker_id, worker);
-    }
 }
 
 impl Route {

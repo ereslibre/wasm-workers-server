@@ -14,10 +14,11 @@ use config::Config;
 use errors::Result;
 use features::wasi_nn::WASI_NN_BACKEND_OPENVINO;
 use io::{WasmInput, WasmOutput};
+use lazy_static::lazy_static;
 use sha256::digest as sha256_digest;
 use std::fs;
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 use std::{collections::HashMap, path::Path};
 use stdio::Stdio;
 use wasi_common::WasiCtx;
@@ -26,6 +27,32 @@ use wasmtime_wasi::{ambient_authority, Dir, WasiCtxBuilder};
 use wasmtime_wasi_nn::WasiNnCtx;
 use wws_config::Config as ProjectConfig;
 use wws_runtimes::{init_runtime, Runtime};
+
+lazy_static! {
+    pub static ref WORKERS: RwLock<WorkerSet> = RwLock::new(WorkerSet::default());
+}
+
+/// Structure that holds the map of workers from their identifier to
+/// their worker::Worker structure containing the runtime information,
+/// such as the WebAssembly module itself as well as the WebAssembly
+/// runtime.
+///
+/// This structure hides the global (but internal) hash map from
+/// other crates.
+#[derive(Default)]
+pub struct WorkerSet {
+    workers: HashMap<String, Worker>,
+}
+
+impl WorkerSet {
+    pub fn get(&self, worker_id: &str) -> Option<&Worker> {
+        self.workers.get(worker_id)
+    }
+
+    pub fn register(&mut self, worker_id: String, worker: Worker) {
+        self.workers.insert(worker_id, worker);
+    }
+}
 
 /// A worker contains the engine and the associated runtime.
 /// This struct will process requests by preparing the environment

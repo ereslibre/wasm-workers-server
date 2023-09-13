@@ -52,6 +52,52 @@ impl From<reqwest::Error> for HttpError {
     }
 }
 
+impl HttpBindings {
+    fn is_request_allowed(&self, uri: &Uri, method: &Method) -> Result<(), HttpRequestError> {
+        // Check that the host is allowed
+        if uri.host().is_some()
+            && !self
+                .http_config
+                .allowed_hosts
+                .contains(&uri.host().unwrap().to_string())
+        {
+            return Err(HttpRequestError {
+                error: HttpError::NotAllowed,
+                message: format!(
+                    "The host '{}' is not allowed for this worker. Please, update the worker configuration.",
+                    uri.host().unwrap()
+                ),
+            });
+        }
+
+        // Check that the scheme is allowed
+        if uri.scheme().is_some()
+            && (!self.http_config.allow_http && uri.scheme_str().unwrap() == "http")
+        {
+            return Err(HttpRequestError {
+                error: HttpError::NotAllowed,
+                message:
+                "The URI must use HTTPS. You can allow http requests in the worker configuration".to_string()
+            });
+        }
+
+        // Check that the method is allowed
+        if !self
+            .http_config
+            .allowed_methods
+            .contains(&method.to_string())
+        {
+            return Err(HttpRequestError {
+                error: HttpError::NotAllowed,
+                message:
+                format!("The method '{}' is not allowed for this worker. Please, update the configuration.", method.as_str())
+            });
+        }
+
+        Ok(())
+    }
+}
+
 impl Http for HttpBindings {
     fn send_http_request(
         &mut self,
@@ -68,42 +114,7 @@ impl Http for HttpBindings {
         let method: Method = req.method.into();
 
         // Check if the request is allowed
-        if uri.host().is_some()
-            && !self
-                .http_config
-                .allowed_hosts
-                .contains(&uri.host().unwrap().to_string())
-        {
-            return Err(HttpRequestError {
-                error: HttpError::NotAllowed,
-                message: format!(
-                    "The host '{}' is not allowed for this worker. Please, update the worker configuration.",
-                    uri.host().unwrap()
-                ),
-            });
-        }
-
-        if uri.scheme().is_some()
-            && (!self.http_config.allow_http && uri.scheme_str().unwrap() == "http")
-        {
-            return Err(HttpRequestError {
-                error: HttpError::NotAllowed,
-                message:
-                    "The URI must use HTTPS. You can allow http requests in the worker configuration".to_string()
-            });
-        }
-
-        if !self
-            .http_config
-            .allowed_methods
-            .contains(&method.to_string())
-        {
-            return Err(HttpRequestError {
-                error: HttpError::NotAllowed,
-                message:
-                    format!("The method '{}' is not allowed for this worker. Please, update the configuration.", method.as_str())
-            });
-        }
+        self.is_request_allowed(&uri, &method)?;
 
         for (key, value) in req.headers {
             headers.push((key.to_string(), value.to_string()));
