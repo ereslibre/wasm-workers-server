@@ -1,9 +1,10 @@
 // Copyright 2023 VMware, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::features::http_requests::HttpRequestsConfig;
+use crate::{features::http_requests::HttpRequestsConfig, WORKERS};
 use actix_web::http::Uri;
 use reqwest::Method;
+use std::collections::HashMap;
 use tokio::runtime::Builder;
 
 // Implement the HTTP bindings for the workers.
@@ -52,6 +53,13 @@ impl From<reqwest::Error> for HttpError {
     }
 }
 
+type HttpHeaders = Vec<(String, String)>;
+
+enum HttpRequestDispatchType {
+    Local,
+    Remote,
+}
+
 impl HttpBindings {
     fn is_request_allowed(&self, uri: &Uri, method: &Method) -> Result<(), HttpRequestError> {
         // Check that the host is allowed
@@ -96,15 +104,44 @@ impl HttpBindings {
 
         Ok(())
     }
-}
 
-impl Http for HttpBindings {
-    fn send_http_request(
-        &mut self,
-        req: HttpRequest<'_>,
+    // Defines whether a request is meant to leave the WebAssembly
+    // runtime and be made to the outer world.
+    fn http_request_dispatch_type(
+        &self,
+        req: &HttpRequest<'_>,
+    ) -> Result<HttpRequestDispatchType, HttpError> {
+        let host = req
+            .uri
+            .parse::<Uri>()
+            .map_err(|_| HttpError::InvalidRequest)?;
+        if host.host() == Some("localhost") {
+            Ok(HttpRequestDispatchType::Local)
+        } else {
+            Ok(HttpRequestDispatchType::Remote)
+        }
+    }
+
+    // Dispatches an HTTP request made by a worker to another
+    // worker. This request will not leave the WebAssembly runtime.
+    fn dispatch_local_http_request(
+        &self,
+        req: &HttpRequest<'_>,
+        headers: HttpHeaders,
     ) -> Result<HttpResponse, HttpRequestError> {
-        // Create local variables from the request
-        let mut headers = Vec::new();
+        Err(HttpRequestError {
+            error: HttpError::InternalError,
+            message: "Not implemented yet.".to_string(),
+        })
+    }
+
+    // Dispatches the HTTP request made by a worker to an external
+    // service. This request will leave the WebAssembly runtime.
+    fn dispatch_remote_http_request(
+        &self,
+        req: &HttpRequest<'_>,
+        headers: HttpHeaders,
+    ) -> Result<HttpResponse, HttpRequestError> {
         let url = req.uri.to_string();
         let body = req.body.unwrap_or(&[]).to_vec();
         let uri = url.parse::<Uri>().map_err(|e| HttpRequestError {
@@ -115,10 +152,6 @@ impl Http for HttpBindings {
 
         // Check if the request is allowed
         self.is_request_allowed(&uri, &method)?;
-
-        for (key, value) in req.headers {
-            headers.push((key.to_string(), value.to_string()));
-        }
 
         // Run the request in an async thread
         let thread_result = std::thread::spawn(move || {
@@ -178,6 +211,42 @@ impl Http for HttpBindings {
                 error: HttpError::InternalError,
                 message: "There was an error processing the request on the host side.".to_string(),
             }),
+        }
+    }
+}
+
+impl Http for HttpBindings {
+    fn send_http_request(
+        &mut self,
+        req: HttpRequest<'_>,
+    ) -> Result<HttpResponse, HttpRequestError> {
+        let url = req.uri.to_string();
+        let body = req.body.unwrap_or(&[]).to_vec();
+        let uri = url.parse::<Uri>().map_err(|e| HttpRequestError {
+            error: HttpError::InvalidRequest,
+            message: e.to_string(),
+        })?;
+        let method: Method = req.method.into();
+
+        // Check if the request is allowed
+        self.is_request_allowed(&uri, &method)?;
+
+        // Create local variables from the request
+        let mut headers = Vec::new();
+        for (key, value) in &req.headers {
+            headers.push((key.to_string(), value.to_string()));
+        }
+
+        let dispatch_type =
+            self.http_request_dispatch_type(&req)
+                .map_err(|_| HttpRequestError {
+                    error: HttpError::InvalidRequest,
+                    message: "error determining if the request is meant to be local or remote"
+                        .to_string(),
+                })?;
+        match dispatch_type {
+            HttpRequestDispatchType::Local => self.dispatch_local_http_request(&req, headers),
+            HttpRequestDispatchType::Remote => self.dispatch_remote_http_request(&req, headers),
         }
     }
 }
