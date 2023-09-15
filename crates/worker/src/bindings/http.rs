@@ -7,10 +7,10 @@ use reqwest::Method;
 use tokio::runtime::Builder;
 
 // Implement the HTTP bindings for the workers.
-wit_bindgen_wasmtime::export!({paths: ["../../wit/core/http.wit"]});
-use http::{Http, HttpError, HttpMethod, HttpRequest, HttpRequestError, HttpResponse};
-
-pub use http::add_to_linker;
+wasmtime::component::bindgen!(in "../../wit/core/http.wit");
+use crate::bindings::http::wws::http::types::{
+    Host, HttpError, HttpMethod, HttpRequest, HttpRequestError, HttpResponse,
+};
 
 pub struct HttpBindings {
     pub http_config: HttpRequestsConfig,
@@ -52,15 +52,15 @@ impl From<reqwest::Error> for HttpError {
     }
 }
 
-impl Http for HttpBindings {
+impl Host for HttpBindings {
     fn send_http_request(
         &mut self,
-        req: HttpRequest<'_>,
-    ) -> Result<HttpResponse, HttpRequestError> {
+        req: HttpRequest,
+    ) -> wasmtime::Result<Result<HttpResponse, HttpRequestError>> {
         // Create local variables from the request
         let mut headers = Vec::new();
         let url = req.uri.to_string();
-        let body = req.body.unwrap_or(&[]).to_vec();
+        let body = req.body.unwrap_or_default().to_vec();
         let uri = url.parse::<Uri>().map_err(|e| HttpRequestError {
             error: HttpError::InvalidRequest,
             message: e.to_string(),
@@ -74,23 +74,23 @@ impl Http for HttpBindings {
                 .allowed_hosts
                 .contains(&uri.host().unwrap().to_string())
         {
-            return Err(HttpRequestError {
+            return Ok(Err(HttpRequestError {
                 error: HttpError::NotAllowed,
                 message: format!(
                     "The host '{}' is not allowed for this worker. Please, update the worker configuration.",
                     uri.host().unwrap()
                 ),
-            });
+            }));
         }
 
         if uri.scheme().is_some()
             && (!self.http_config.allow_http && uri.scheme_str().unwrap() == "http")
         {
-            return Err(HttpRequestError {
+            return Ok(Err(HttpRequestError {
                 error: HttpError::NotAllowed,
                 message:
                     "The URI must use HTTPS. You can allow http requests in the worker configuration".to_string()
-            });
+            }));
         }
 
         if !self
@@ -98,11 +98,11 @@ impl Http for HttpBindings {
             .allowed_methods
             .contains(&method.to_string())
         {
-            return Err(HttpRequestError {
+            return Ok(Err(HttpRequestError {
                 error: HttpError::NotAllowed,
                 message:
                     format!("The method '{}' is not allowed for this worker. Please, update the configuration.", method.as_str())
-            });
+            }));
         }
 
         for (key, value) in req.headers {
@@ -138,20 +138,20 @@ impl Http for HttpBindings {
 
                             let body = res.bytes().await;
 
-                            Ok(HttpResponse {
+                            Ok(Ok(HttpResponse {
                                 headers,
                                 status,
                                 body: Some(body.unwrap().to_vec()),
-                            })
+                            }))
                         }
                         Err(e) => {
                             let message = e.to_string();
 
                             // Manage the different possible errors from Reqwest
-                            Err(HttpRequestError {
+                            Ok(Err(HttpRequestError {
                                 error: e.into(),
                                 message,
-                            })
+                            }))
                         }
                     }
                 })
@@ -163,10 +163,10 @@ impl Http for HttpBindings {
                 Ok(res) => Ok(res),
                 Err(err) => Err(err),
             },
-            Err(_) => Err(HttpRequestError {
+            Err(_) => Ok(Err(HttpRequestError {
                 error: HttpError::InternalError,
                 message: "There was an error processing the request on the host side.".to_string(),
-            }),
+            })),
         }
     }
 }

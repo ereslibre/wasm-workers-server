@@ -9,7 +9,7 @@ pub mod io;
 mod stdio;
 
 use actix_web::HttpRequest;
-use bindings::http::{add_to_linker as http_add_to_linker, HttpBindings};
+use bindings::http::HttpBindings;
 use config::Config;
 use errors::Result;
 use features::wasi_nn::WASI_NN_BACKEND_OPENVINO;
@@ -101,8 +101,11 @@ impl Worker {
 
         let mut linker = Linker::new(&self.engine);
 
-        http_add_to_linker(&mut linker, |s: &mut WorkerState| &mut s.http)
-            .map_err(|_| errors::WorkerError::ConfigureRuntimeError)?;
+        crate::bindings::http::wws::http::types::add_to_linker(
+            &mut linker,
+            |s: &mut WorkerState| &mut s.http,
+        )
+        .map_err(|_| errors::WorkerError::ConfigureRuntimeError)?;
         wasmtime_wasi::add_to_linker(&mut linker, |s: &mut WorkerState| &mut s.wasi)
             .map_err(|_| errors::WorkerError::ConfigureRuntimeError)?;
 
