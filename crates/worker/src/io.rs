@@ -1,7 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::errors::{self, Result};
+use crate::errors::{self, Result, WorkerError};
 
 use actix_web::{
     http::{header::HeaderMap, StatusCode},
@@ -114,9 +114,9 @@ impl WasmOutput {
     /// Build a default WasmOutput for a failed run. It will
     /// return a generic error message and the proper 503
     /// status code
-    pub fn failed() -> Self {
+    pub fn failed(err: WorkerError) -> Self {
         Self::new(
-            "<p>There was an error running this function</p>",
+            &format!("<p>There was an error running this function: {err}</p>"),
             HashMap::from([("content-type".to_string(), "text/html".to_string())]),
             StatusCode::SERVICE_UNAVAILABLE.as_u16(),
             HashMap::new(),

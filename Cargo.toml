@@ -64,6 +64,7 @@ members = [
 ]
 # Exclude examples
 exclude = [
+  "examples/components/rust-basic",
   "examples/pdf-create",
   "examples/rust-basic",
   "examples/rust-fetch",
@@ -91,9 +92,9 @@ wws-project = { path = "./crates/project" }
 wws-panel = { path = "./crates/panel" }
 wws-api-manage = { path = "./crates/api-manage" }
 wws-api-manage-openapi = { path = "./crates/api-manage-openapi" }
-wasmtime = "10.0.2"
-wasmtime-wasi = "10.0.2"
-wasmtime-wasi-nn = "10.0.2"
-wasi-common = "10.0.2"
+wasmtime = { version = "13.0.0", features = [ "component-model" ] }
+wasmtime-wasi = "13.0.0"
+wasmtime-wasi-nn = "13.0.0"
+wasi-common = "13.0.0"
 path-slash = "0.2.1"
 openssl = { version = "=0.10.55" }

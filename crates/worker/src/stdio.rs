@@ -1,6 +1,7 @@
+use bytes::Bytes;
 use std::io::Cursor;
 use wasi_common::pipe::{ReadPipe, WritePipe};
-use wasmtime_wasi::WasiCtxBuilder;
+use wasmtime_wasi::{preview2, WasiCtxBuilder};
 
 /// A library to configure the stdio of the WASI context.
 /// Note that currently, wws relies on stdin and stdout
@@ -10,7 +11,7 @@ use wasmtime_wasi::WasiCtxBuilder;
 /// a more performant and appropiate approach.
 pub struct Stdio {
     /// Defines the stdin ReadPipe to send the data to the module
-    pub stdin: ReadPipe<Cursor<String>>,
+    pub stdin: String,
     /// Defines the stdout to extract the data from the module
     pub stdout: WritePipe<Cursor<Vec<u8>>>,
 }
@@ -19,15 +20,33 @@ impl Stdio {
     /// Initialize the stdio. The stdin will contain the input data.
     pub fn new(input: &str) -> Self {
         Self {
-            stdin: ReadPipe::from(input),
+            stdin: String::from(input),
             stdout: WritePipe::new_in_memory(),
         }
     }
 
-    pub fn configure_wasi_ctx(&self, builder: WasiCtxBuilder) -> WasiCtxBuilder {
-        builder
-            .stdin(Box::new(self.stdin.clone()))
-            .stdout(Box::new(self.stdout.clone()))
-            .inherit_stderr()
+    pub fn configure_wasi_ctx<'a>(
+        &'a self,
+        builder_preview1: Option<&'a mut WasiCtxBuilder>,
+        builder_preview2: Option<&'a mut preview2::WasiCtxBuilder>,
+    ) {
+        if let Some(builder_preview1) = builder_preview1 {
+            builder_preview1
+                .stdin(Box::new(ReadPipe::new(Cursor::new(self.stdin.clone()))))
+                .stdout(Box::new(self.stdout.clone()))
+                .inherit_stderr();
+        }
+        if let Some(builder_preview2) = builder_preview2 {
+            builder_preview2
+                .stdin(
+                    preview2::pipe::MemoryInputPipe::new(self.stdin.clone().into()),
+                    preview2::IsATTY::No,
+                )
+                .stdout(
+                    preview2::pipe::MemoryOutputPipe::new(1024),
+                    preview2::IsATTY::No,
+                )
+                .inherit_stderr();
+        }
     }
 }

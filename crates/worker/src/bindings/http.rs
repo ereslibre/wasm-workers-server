@@ -7,11 +7,15 @@ use reqwest::Method;
 use tokio::runtime::Builder;
 
 // Implement the HTTP bindings for the workers.
-wit_bindgen_wasmtime::export!({paths: ["../../wit/core/http.wit"]});
-use http::{Http, HttpError, HttpMethod, HttpRequest, HttpRequestError, HttpResponse};
+wit_bindgen::generate!({
+    path: "../../wit/core",
+    exports: {
+      "wws:http/request": HttpBindings,
+    },
+});
+use crate::bindings::http::wws::http::types::{HttpError, HttpMethod, HttpRequest, HttpRequestError, HttpResponse};
 
-pub use http::add_to_linker;
-
+#[derive(Default)]
 pub struct HttpBindings {
     pub http_config: HttpRequestsConfig,
 }
@@ -52,7 +56,7 @@ impl From<reqwest::Error> for HttpError {
     }
 }
 
-impl Http for HttpBindings {
+impl crate::bindings::http::exports::wws::http::request::Host for HttpBindings {
     fn send_http_request(
         &mut self,
         req: HttpRequest<'_>,

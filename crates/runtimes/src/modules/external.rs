@@ -8,7 +8,11 @@ use std::{
     fs,
     path::{Path, PathBuf},
 };
-use wasmtime_wasi::{ambient_authority, Dir, WasiCtxBuilder};
+use wasmtime_wasi::{
+    ambient_authority,
+    preview2::{self, DirPerms, FilePerms},
+    Dir, WasiCtxBuilder,
+};
 use wws_project::metadata::Runtime as RuntimeMetadata;
 use wws_store::Store;
 
@@ -90,13 +94,29 @@ impl Runtime for ExternalRuntime {
 
     /// Mount the source code in the WASI context so it can be
     /// processed by the engine
-    fn prepare_wasi_ctx(&self, builder: WasiCtxBuilder) -> Result<WasiCtxBuilder> {
-        let dir = Dir::open_ambient_dir(&self.store.folder, ambient_authority())?;
-
-        builder
-            .preopened_dir(dir, "/src")?
+    fn prepare_wasi_ctx(
+        &self,
+        preview1_builder: &mut WasiCtxBuilder,
+        preview2_builder: &mut preview2::WasiCtxBuilder,
+    ) -> Result<()> {
+        preview1_builder
+            .preopened_dir(
+                Dir::open_ambient_dir(&self.store.folder, ambient_authority())?,
+                "/src",
+            )?
             .args(&self.metadata.args)
-            .map_err(|_| errors::RuntimeError::WasiContextError)
+            .map_err(move |_| errors::RuntimeError::WasiContextError)?;
+
+        preview2_builder
+            .preopened_dir(
+                Dir::open_ambient_dir(&self.store.folder, ambient_authority())?,
+                DirPerms::READ | DirPerms::MUTATE,
+                FilePerms::READ | FilePerms::WRITE,
+                "/src",
+            )
+            .args(&self.metadata.args);
+
+        Ok(())
     }
 
     /// Returns a reference to the Wasm module that should
@@ -105,6 +125,6 @@ impl Runtime for ExternalRuntime {
     fn module_bytes(&self) -> Result<Vec<u8>> {
         self.runtime_store
             .read(&[&self.metadata.binary.filename])
-            .map_err(|_| errors::RuntimeError::CannotReadModule)
+            .map_err(move |_| errors::RuntimeError::CannotReadModule)
     }
 }

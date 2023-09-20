@@ -5,7 +5,11 @@ use crate::errors::Result;
 use crate::runtime::Runtime;
 
 use std::path::{Path, PathBuf};
-use wasmtime_wasi::{ambient_authority, Dir, WasiCtxBuilder};
+use wasmtime_wasi::{
+    ambient_authority,
+    preview2::{self, DirPerms, FilePerms},
+    Dir, WasiCtxBuilder,
+};
 use wws_store::Store;
 
 static JS_ENGINE_WASM: &[u8] =
@@ -46,9 +50,22 @@ impl Runtime for JavaScriptRuntime {
 
     /// Mount the source code in the WASI context so it can be
     /// processed by the engine
-    fn prepare_wasi_ctx(&self, builder: WasiCtxBuilder) -> Result<WasiCtxBuilder> {
-        let dir = Dir::open_ambient_dir(&self.store.folder, ambient_authority())?;
-        Ok(builder.preopened_dir(dir, "/src")?)
+    fn prepare_wasi_ctx(
+        &self,
+        preview1_builder: &mut WasiCtxBuilder,
+        preview2_builder: &mut preview2::WasiCtxBuilder,
+    ) -> Result<()> {
+        preview1_builder.preopened_dir(
+            Dir::open_ambient_dir(&self.store.folder, ambient_authority())?,
+            "/src",
+        )?;
+        preview2_builder.preopened_dir(
+            Dir::open_ambient_dir(&self.store.folder, ambient_authority())?,
+            DirPerms::READ | DirPerms::MUTATE,
+            FilePerms::READ | FilePerms::WRITE,
+            "/src",
+        );
+        Ok(())
     }
 
     /// Returns a reference to the Wasm module that should

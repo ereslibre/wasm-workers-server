@@ -81,7 +81,7 @@ pub async fn handle_worker(req: HttpRequest, body: Bytes) -> HttpResponse {
 
         let (handler_result, handler_success) = match worker.run(&req, &body_str, store, vars) {
             Ok(output) => (output, true),
-            Err(_) => (WasmOutput::failed(), false),
+            Err(err) => (WasmOutput::failed(err), false),
         };
 
         let mut builder = HttpResponse::build(
