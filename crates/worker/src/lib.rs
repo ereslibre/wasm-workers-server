@@ -39,7 +39,7 @@ pub struct Worker {
     /// Worker identifier
     pub id: String,
     /// Wasmtime engine to run this worker
-    engine: Engine,
+    engine: Arc<Engine>,
     /// Wasm Module or Component
     module_or_component: ModuleOrComponent,
     /// Worker runtime
@@ -140,7 +140,7 @@ impl Worker {
 
         Ok(Self {
             id,
-            engine,
+            engine: engine.into(),
             module_or_component,
             runtime,
             config,
@@ -196,14 +196,15 @@ impl Worker {
     fn prepare_preview2_ctx<T: preview2::preview1::WasiPreview1View>(
         &self,
         linker: &mut Linker<T>,
+        component_linker: &mut component::Linker<T>,
         input: &str,
         vars: &[(String, String)],
         folders: &Vec<Folder>,
     ) -> Result<(Stdio, preview2::WasiCtxBuilder)> {
         // Add WASI
-        preview2::preview1::add_to_linker_sync(linker).map_err(|err| {
+        preview2::command::sync::add_to_linker(component_linker).map_err(|err| {
             errors::WorkerError::ConfigureRuntimeError {
-                reason: format!("error adding WASI to linker ({err})"),
+                reason: format!("error setting up WASI preview 2: {err}"),
             }
         })?;
 
@@ -256,12 +257,17 @@ impl Worker {
             Vec::new()
         };
 
-        let mut module_linker = Linker::new(&self.engine);
-        let (stdio_preview1, mut wasi_preview1_ctx_builder) =
-            self.prepare_preview1_ctx(&mut module_linker, &input, &tuple_vars, &preopened_folders)?;
+        let mut module_linker: wasmtime::Linker<Host> = Linker::new(&self.engine);
+        // let (stdio_preview1, mut wasi_preview1_ctx_builder) =
+        //     self.prepare_preview1_ctx(&mut module_linker, &input, &tuple_vars, &preopened_folders)?;
         let mut component_linker: component::Linker<Host> = component::Linker::new(&self.engine);
-        let (stdio_preview2, mut wasi_preview2_ctx_builder) =
-            self.prepare_preview2_ctx(&mut module_linker, &input, &tuple_vars, &preopened_folders)?;
+        let (stdio_preview2, mut wasi_preview2_ctx_builder) = self.prepare_preview2_ctx(
+            &mut module_linker,
+            &mut component_linker,
+            &input,
+            &tuple_vars,
+            &preopened_folders,
+        )?;
 
         // WASI-NN
         let allowed_backends = &self.config.features.wasi_nn.allowed_backends;
@@ -293,50 +299,11 @@ impl Worker {
         };
 
         let contents = match self.module_or_component {
-            ModuleOrComponent::Module(ref module) => {
-                // Pass to the runtime to add any WASI specific requirement
-                self.runtime.prepare_wasi_ctx(
-                    &mut wasi_preview1_ctx_builder,
-                    &mut wasi_preview2_ctx_builder,
-                )?;
-
-                let host = Host {
-                    wasi_preview1_ctx: Some(wasi_preview1_ctx_builder.build()),
-                    wasi_preview2_ctx: None,
-                    ..Host::default()
-                };
-                let mut store = Store::new(&self.engine, host);
-
-                module_linker
-                    .module(&mut store, "", module)
-                    .map_err(|err| errors::WorkerError::ConfigureRuntimeError {
-                        reason: format!("error instantiating module ({err})"),
-                    })?
-                    .get_default(&mut store, "")
-                    .map_err(|err| errors::WorkerError::ConfigureRuntimeError {
-                        reason: format!("error getting default export of module ({err})"),
-                    })?
-                    .typed::<(), ()>(&store)
-                    .map_err(|err| errors::WorkerError::ConfigureRuntimeError {
-                        reason: format!("error getting typed object ({err})"),
-                    })?
-                    .call(&mut store, ())
-                    .map_err(|err| errors::WorkerError::ConfigureRuntimeError {
-                        reason: format!("error calling function ({err})"),
-                    })?;
-
-                stdio_preview1
-                    .stdout
-                    .try_into_inner()
-                    .unwrap_or_default()
-                    .into_inner()
-            }
+            ModuleOrComponent::Module(ref module) => Vec::new(),
             ModuleOrComponent::Component(ref component) => {
                 // Pass to the runtime to add any WASI specific requirement
-                self.runtime.prepare_wasi_ctx(
-                    &mut wasi_preview1_ctx_builder,
-                    &mut wasi_preview2_ctx_builder,
-                )?;
+                self.runtime
+                    .prepare_wasi_ctx(&mut wasi_preview2_ctx_builder)?;
 
                 let mut table = Arc::new(preview2::Table::default());
                 let host = Host {
@@ -351,26 +318,26 @@ impl Worker {
                     wasi_preview2_table: table,
                     ..Host::default()
                 };
+
                 let mut store = Store::new(&self.engine, host);
 
-                let (command, _instance) = preview2::command::sync::Command::instantiate(
-                    &mut store,
-                    component,
-                    &component_linker,
-                )
-                .map_err(|err| errors::WorkerError::ConfigureRuntimeError {
-                    reason: format!("error instantiating component ({err})"),
-                })?;
-
-                command
-                    .wasi_cli_run()
-                    .call_run(&mut store)
-                    .map_err(|err| errors::WorkerError::ConfigureRuntimeError {
-                        reason: format!("error calling function ({:?})", err),
-                    })?
-                    .map_err(|err| errors::WorkerError::ConfigureRuntimeError {
-                        reason: format!("error calling function ({:?})", err),
-                    })?;
+                // component_linker
+                //     .module(&mut store, "", module)
+                //     .map_err(|err| errors::WorkerError::ConfigureRuntimeError {
+                //         reason: format!("error instantiating module ({err})"),
+                //     })?
+                //     .get_default(&mut store, "")
+                //     .map_err(|err| errors::WorkerError::ConfigureRuntimeError {
+                //         reason: format!("error getting default export of module ({err})"),
+                //     })?
+                //     .typed::<(), ()>(&store)
+                //     .map_err(|err| errors::WorkerError::ConfigureRuntimeError {
+                //         reason: format!("error getting typed object ({err})"),
+                //     })?
+                //     .call(&mut store, ())
+                //     .map_err(|err| errors::WorkerError::ConfigureRuntimeError {
+                //         reason: format!("error calling function ({err})"),
+                //     })?;
 
                 stdio_preview2
                     .stdout

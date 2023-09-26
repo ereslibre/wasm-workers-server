@@ -23,7 +23,6 @@ pub trait Runtime {
     /// environment variables.
     fn prepare_wasi_ctx<'a>(
         &'a self,
-        _preview1_wasi_ctx_builder: &'a mut WasiCtxBuilder,
         _preview2_wasi_ctx_builder: &'a mut preview2::WasiCtxBuilder,
     ) -> Result<()> {
         Ok(())

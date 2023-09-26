@@ -94,19 +94,7 @@ impl Runtime for ExternalRuntime {
 
     /// Mount the source code in the WASI context so it can be
     /// processed by the engine
-    fn prepare_wasi_ctx(
-        &self,
-        preview1_builder: &mut WasiCtxBuilder,
-        preview2_builder: &mut preview2::WasiCtxBuilder,
-    ) -> Result<()> {
-        preview1_builder
-            .preopened_dir(
-                Dir::open_ambient_dir(&self.store.folder, ambient_authority())?,
-                "/src",
-            )?
-            .args(&self.metadata.args)
-            .map_err(move |_| errors::RuntimeError::WasiContextError)?;
-
+    fn prepare_wasi_ctx(&self, preview2_builder: &mut preview2::WasiCtxBuilder) -> Result<()> {
         preview2_builder
             .preopened_dir(
                 Dir::open_ambient_dir(&self.store.folder, ambient_authority())?,
