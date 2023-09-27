@@ -1,7 +1,7 @@
 use bytes::Bytes;
 use std::io::Cursor;
 use wasi_common::pipe::{ReadPipe, WritePipe};
-use wasmtime_wasi::{preview2, WasiCtxBuilder};
+use wasmtime_wasi::{preview2::{self, pipe::AsyncWriteStream}, WasiCtxBuilder};
 
 /// A library to configure the stdio of the WASI context.
 /// Note that currently, wws relies on stdin and stdout
@@ -14,6 +14,7 @@ pub struct Stdio {
     pub stdin: Vec<u8>,
     /// Defines the stdout to extract the data from the module
     pub stdout: WritePipe<Cursor<Vec<u8>>>,
+    pub stdout2: preview2::pipe::MemoryOutputPipe,
 }
 
 impl Stdio {
@@ -22,6 +23,7 @@ impl Stdio {
         Self {
             stdin: Vec::from(input),
             stdout: WritePipe::new_in_memory(),
+            stdout2: preview2::pipe::MemoryOutputPipe::new(10240),
         }
     }
 
@@ -42,7 +44,7 @@ impl Stdio {
                     preview2::pipe::MemoryInputPipe::new(self.stdin.clone().into()),
                     preview2::IsATTY::No,
                 )
-                .inherit_stdout()
+                .stdout(self.stdout2.clone(), preview2::IsATTY::No)
                 .inherit_stderr();
         }
     }

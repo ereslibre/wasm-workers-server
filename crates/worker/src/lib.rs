@@ -212,8 +212,13 @@ impl Worker {
         let mut wasi_builder = preview2::WasiCtxBuilder::new();
 
         // Configure the stdio
-        let stdio = Stdio::new(input);
+        let mut stdio = Stdio::new(input);
         stdio.configure_wasi_ctx(None, Some(&mut wasi_builder));
+
+        let stdout2 = preview2::pipe::MemoryOutputPipe::new(102400);
+        stdio.stdout2 = stdout2.clone();
+        wasi_builder.stdout(stdout2.clone(), preview2::IsATTY::No);
+        wasi_builder.envs(vars);
 
         for folder in folders {
             if let Some(base) = &self.path.parent() {
@@ -354,14 +359,14 @@ impl Worker {
                 //         reason: format!("error calling function ({err})"),
                 //     })?;
 
-                // stdio_preview2
-                //     .stdout2
-                //     .clone()
-                //     .try_into_inner()
-                //     .unwrap_or_default()
-                //     .to_vec()
+                println!("result is: {:?}", stdio_preview2.stdout2.contents());
 
-                Vec::new()
+                stdio_preview2
+                    .stdout2
+                    .clone()
+                    .try_into_inner()
+                    .unwrap_or_default()
+                    .to_vec()
             }
         };
 
