@@ -42,10 +42,7 @@ impl Stdio {
                     preview2::pipe::MemoryInputPipe::new(self.stdin.clone().into()),
                     preview2::IsATTY::No,
                 )
-                .stdout(
-                    preview2::pipe::MemoryOutputPipe::new(10240),
-                    preview2::IsATTY::No,
-                )
+                .inherit_stdout()
                 .inherit_stderr();
         }
     }

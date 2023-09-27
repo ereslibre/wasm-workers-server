@@ -215,8 +215,6 @@ impl Worker {
         let stdio = Stdio::new(input);
         stdio.configure_wasi_ctx(None, Some(&mut wasi_builder));
 
-        wasi_builder.envs(vars);
-
         for folder in folders {
             if let Some(base) = &self.path.parent() {
                 let dir = Dir::open_ambient_dir(base.join(&folder.from), ambient_authority())
@@ -356,14 +354,14 @@ impl Worker {
                 //         reason: format!("error calling function ({err})"),
                 //     })?;
 
-                stdio_preview2
-                    .stdout
-                    .clone()
-                    .try_into_inner()
-                    .map_err(|err| errors::WorkerError::ConfigureRuntimeError {
-                                reason: format!("error setting up stdout: {:?}", err),
-                            })?
-                    .into_inner()
+                // stdio_preview2
+                //     .stdout2
+                //     .clone()
+                //     .try_into_inner()
+                //     .unwrap_or_default()
+                //     .to_vec()
+
+                Vec::new()
             }
         };
 
