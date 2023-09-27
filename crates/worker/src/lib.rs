@@ -119,7 +119,7 @@ impl Worker {
         }
 
         let engine =
-            Engine::new(WasmtimeConfig::default().wasm_component_model(true)).map_err(|err| {
+            Engine::new(WasmtimeConfig::default().async_support(true).wasm_component_model(true)).map_err(|err| {
                 errors::WorkerError::ConfigureRuntimeError {
                     reason: format!("error creating engine ({err})"),
                 }
@@ -151,7 +151,7 @@ impl Worker {
     fn prepare_preview1_ctx(
         &self,
         linker: &mut Linker<Host>,
-        input: &str,
+        input: &[u8],
         vars: &[(String, String)],
         folders: &Vec<Folder>,
     ) -> Result<(Stdio, WasiCtxBuilder)> {
@@ -197,12 +197,12 @@ impl Worker {
         &self,
         linker: &mut Linker<T>,
         component_linker: &mut component::Linker<T>,
-        input: &str,
+        input: &[u8],
         vars: &[(String, String)],
         folders: &Vec<Folder>,
     ) -> Result<(Stdio, preview2::WasiCtxBuilder)> {
         // Add WASI
-        preview2::command::sync::add_to_linker(component_linker).map_err(|err| {
+        preview2::command::add_to_linker(component_linker).map_err(|err| {
             errors::WorkerError::ConfigureRuntimeError {
                 reason: format!("error setting up WASI preview 2: {err}"),
             }
@@ -237,7 +237,7 @@ impl Worker {
         Ok((stdio, wasi_builder))
     }
 
-    pub fn run(
+    pub async fn run(
         &self,
         request: &HttpRequest,
         body: &str,
@@ -264,7 +264,7 @@ impl Worker {
         let (stdio_preview2, mut wasi_preview2_ctx_builder) = self.prepare_preview2_ctx(
             &mut module_linker,
             &mut component_linker,
-            &input,
+            &input.as_bytes(),
             &tuple_vars,
             &preopened_folders,
         )?;
@@ -321,6 +321,23 @@ impl Worker {
 
                 let mut store = Store::new(&self.engine, host);
 
+                let (command, _instance) =
+                    preview2::command::Command::instantiate_async(&mut store, component, &component_linker)
+                    .await
+                    .unwrap();
+                let result = command
+                    .wasi_cli_run()
+                    .call_run(&mut store)
+                    .await
+                    .unwrap();
+
+                // let component_instance = component_linker.instantiate(&mut store, component)
+                //     .map_err(|err| errors::WorkerError::ConfigureRuntimeError {
+                //         reason: format!("error instantiating component")
+                //     })?;
+                // component_instance
+                //     .call_run(&mut store);
+
                 // component_linker
                 //     .module(&mut store, "", module)
                 //     .map_err(|err| errors::WorkerError::ConfigureRuntimeError {
@@ -341,8 +358,11 @@ impl Worker {
 
                 stdio_preview2
                     .stdout
+                    .clone()
                     .try_into_inner()
-                    .unwrap_or_default()
+                    .map_err(|err| errors::WorkerError::ConfigureRuntimeError {
+                                reason: format!("error setting up stdout: {:?}", err),
+                            })?
                     .into_inner()
             }
         };

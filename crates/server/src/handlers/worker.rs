@@ -79,7 +79,7 @@ pub async fn handle_worker(req: HttpRequest, body: Bytes) -> HttpResponse {
             None => None,
         };
 
-        let (handler_result, handler_success) = match worker.run(&req, &body_str, store, vars) {
+        let (handler_result, handler_success) = match worker.run(&req, &body_str, store, vars).await {
             Ok(output) => (output, true),
             Err(err) => (WasmOutput::failed(err), false),
         };

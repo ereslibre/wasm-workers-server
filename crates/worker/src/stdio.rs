@@ -11,16 +11,16 @@ use wasmtime_wasi::{preview2, WasiCtxBuilder};
 /// a more performant and appropiate approach.
 pub struct Stdio {
     /// Defines the stdin ReadPipe to send the data to the module
-    pub stdin: String,
+    pub stdin: Vec<u8>,
     /// Defines the stdout to extract the data from the module
     pub stdout: WritePipe<Cursor<Vec<u8>>>,
 }
 
 impl Stdio {
     /// Initialize the stdio. The stdin will contain the input data.
-    pub fn new(input: &str) -> Self {
+    pub fn new(input: &[u8]) -> Self {
         Self {
-            stdin: String::from(input),
+            stdin: Vec::from(input),
             stdout: WritePipe::new_in_memory(),
         }
     }
@@ -43,7 +43,7 @@ impl Stdio {
                     preview2::IsATTY::No,
                 )
                 .stdout(
-                    preview2::pipe::MemoryOutputPipe::new(1024),
+                    preview2::pipe::MemoryOutputPipe::new(10240),
                     preview2::IsATTY::No,
                 )
                 .inherit_stderr();

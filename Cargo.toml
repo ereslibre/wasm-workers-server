@@ -92,7 +92,7 @@ wws-project = { path = "./crates/project" }
 wws-panel = { path = "./crates/panel" }
 wws-api-manage = { path = "./crates/api-manage" }
 wws-api-manage-openapi = { path = "./crates/api-manage-openapi" }
-wasmtime = { version = "13.0.0", features = [ "component-model" ] }
+wasmtime = { version = "13.0.0" }
 wasmtime-wasi = "13.0.0"
 wasmtime-wasi-nn = "13.0.0"
 wasi-common = "13.0.0"
