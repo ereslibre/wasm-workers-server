@@ -359,13 +359,9 @@ impl Worker {
                 //         reason: format!("error calling function ({err})"),
                 //     })?;
 
-                println!("result is: {:?}", stdio_preview2.stdout2.contents());
-
                 stdio_preview2
                     .stdout2
-                    .clone()
-                    .try_into_inner()
-                    .unwrap_or_default()
+                    .contents()
                     .to_vec()
             }
         };
