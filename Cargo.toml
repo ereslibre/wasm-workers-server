@@ -99,3 +99,10 @@ wasmtime-wasi-nn = "13.0.0"
 wasi-common = "13.0.0"
 path-slash = "0.2.1"
 openssl = { version = "=0.10.55" }
+
+[patch.crates-io]
+openvino-finder = { path = "/home/ereslibre/projects/intel/openvino-rs/crates/openvino-finder" }
+openvino-sys = { path = "/home/ereslibre/projects/intel/openvino-rs/crates/openvino-sys" }
+openvino-tensor-converter = { path = "/home/ereslibre/projects/intel/openvino-rs/crates/openvino-tensor-converter" }
+openvino = { path = "/home/ereslibre/projects/intel/openvino-rs/crates/openvino" }
+xtask = { path = "/home/ereslibre/projects/intel/openvino-rs/crates/xtask" }

@@ -1994,8 +1994,6 @@ dependencies = [
 [[package]]
 name = "openvino"
 version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cbc731d9a7805dd533b69de3ee33062d5ea1dfa9fca1c19f8fd165b62e2cdde7"
 dependencies = [
  "openvino-finder",
  "openvino-sys",
@@ -2005,8 +2003,6 @@ dependencies = [
 [[package]]
 name = "openvino-finder"
 version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d8bbd80eea06c2b9ec3dce85900ff3ae596c01105b759b38a005af69bbeb4d07"
 dependencies = [
  "cfg-if",
  "log",
@@ -2015,8 +2011,6 @@ dependencies = [
 [[package]]
 name = "openvino-sys"
 version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "318ed662bdf05a3f86486408159e806d53363171621a8000b81366fab5158713"
 dependencies = [
  "libloading",
  "once_cell",
@@ -4275,3 +4269,11 @@ dependencies = [
  "libc",
  "pkg-config",
 ]
+
+[[patch.unused]]
+name = "openvino-tensor-converter"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "xtask"
+version = "0.1.0"
